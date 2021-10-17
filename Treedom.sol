@@ -35,7 +35,13 @@ contract Treedom is ERC721Enumerable, Ownable, ReentrancyGuard, VRFConsumerBase 
 
     uint256 public randomResult;
 
-    constructor() ERC721("Treedom", "Tree") {}
+	constructor() ERC721("Treedom", "Tree")         VRFConsumerBase(
+		0xdD3782915140c8f3b190B5D67eAc6dc5760C46E9, // VRF Coordinator
+		0xa36085F69e2889c224210F603D836748e7dC0088  // LINK Token
+	) {
+		keyHash = 0x6c3699283bda56ad74f6b855546325b68d482e983852a7a82979cc4807b641f4;
+		fee = 0.1 * 10 ** 18; // 0.1 LINK (Varies by network)
+	}
 
 	/*
 	* START 
@@ -118,7 +124,7 @@ contract Treedom is ERC721Enumerable, Ownable, ReentrancyGuard, VRFConsumerBase 
     }
 
     //Can get burned by randomResult value,
-    //If freeze acc, skip. Get ran
+    //If freeze acc, skip. 
     function burnLottery() public onlyOwner {
         uint256 burned = randomResult;
         address tokenOwner = ownerOf(tokenByIndex(burned));
