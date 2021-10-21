@@ -16,6 +16,14 @@ contract Freezer is IERC721Receiver, Ownable, KeeperCompatibleInterface {
     mapping(uint256 => uint256) timeStamps;
     
     private uint256[] toThaw;
+
+    /*
+    *   toThaw - an array that contains the list of tokens needed to be thawed eventually
+    *   owners - beneficial owner of each token (E.g: 0x00000, 10)
+    *   timeStamps - mapping to retrieve when a token was thawed by user (time in counter, days?)
+    *   nftContract - to ensure that only the treedom contract is deposited into asset locker
+    *   totalTokens - log the amount of tokens currently in the freezer
+    */
     
     private ERC721 nftContract;
     
@@ -45,19 +53,26 @@ contract Freezer is IERC721Receiver, Ownable, KeeperCompatibleInterface {
     function performUpkeep(bytes calldata performData) external override {
         lastTimeStamp = block.timestamp;
         counter = counter + 1;
+        //Regular performUpkeep stuff
+
         uint256 index;
         
+        //Everyday, iterate through every toThaw token and safeTransfer to user (Expensive? Inefficient?)
         for(index = 0; index < toThaw.length; index++) {
             uint256 token = toThaw[index];
+            //If when token was thawed is less than current time
             if(timeStamps[token] < counter - 30) {
+                //remove from toThaw
                 toThaw[index] = toThaw[toThaw.length - 1];
                 toThaw.pop();
+                //reset timestamp
                 timeStamps[token] = 0;
+                //remove beneficial owner
                 owners[msg.sender][index] = owners[msg.sender][owners[msg.sender].length - 1];
                 owners[msg.sender].pop();
-                
+                //transfer back to owner
                 nftContract.safeTransferFrom(address(this), msg.sender, token);
-                
+                //remove one from total tokens
                 totalTokens = totalTokens - 1;
             }
         }
@@ -74,11 +89,15 @@ contract Freezer is IERC721Receiver, Ownable, KeeperCompatibleInterface {
         return nftContract;
     }
 
+    /*
+    *   Thaw() - After 30 days, chainlink keeper should return all toThaw[] tokens to their respective owner.
+    */
+
     function thaw(uint256 tokenId) external returns(bool) {
         require(owners[msg.sender].length != 0, "No tokens detected");
         uint256[] memory tokens = owners[msg.sender];
         uint256 index;
-        
+        //Since tokens are stored by address, iterate through owner's tokens and select based on parameter.
         for(index = 0; index < tokens.length; index++)  {
             if(tokens[index] == tokenId) {
                 uint256 token = tokens[index];
@@ -90,18 +109,21 @@ contract Freezer is IERC721Receiver, Ownable, KeeperCompatibleInterface {
         
         return false;
     }
-    
+
+    //Get Total Tokens
     function getTotalTokens() view external returns(uint256) {
         return totalTokens;
     }
 
+    //Tokens are stored [address -> token] instead of [token -> address]
     function getTokensOfOwner(address addy) external view returns(uint256[] memory) {
         require(owners[addy].length != 0, "No tokens detected");
         return owners[addy];
     }
     
-    function getStamp(uint256 stamp) view external returns(uint256) {
-        return timeStamps[stamp];
+    //Get timeStamp for token
+    function getStamp(uint256 token) view external returns(uint256) {
+        return timeStamps[token];
     }
 
     function onERC721Received(

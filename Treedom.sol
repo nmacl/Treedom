@@ -11,7 +11,8 @@ import "@chainlink/contracts/src/v0.8/VRFConsumerBase.sol";
 
 contract Treedom is ERC721Enumerable, Ownable, ReentrancyGuard, VRFConsumerBase {
     using Strings for uint256;
-
+    
+    //ignore for now
     string private _baseTokenURI = "ipfs://QmfSfjKnHnC7inzGX7jzjA3XLtBbnrfBrMPJtYQNh8Jkf1/";
     string private _contractURI = "ipfs://QmbNwjd1smagNBhpgX3tqUCUcqYEMWrku18ZBYND1chc4c";
 
@@ -24,11 +25,13 @@ contract Treedom is ERC721Enumerable, Ownable, ReentrancyGuard, VRFConsumerBase 
     uint256 public tokenIndex = 0;
     uint256 public price = 50000000000000000; //0.05 eth
 
-    //freezer address
+    //freezer address, to set when contract is deployed
     address public freezeAcc = address(0);
 
 	//health mapping
     mapping(uint256 => uint256) public health;
+
+    //CHAINLINK PARAMETERS
 
     bytes32 internal keyHash;
     uint256 internal fee;
@@ -46,9 +49,10 @@ contract Treedom is ERC721Enumerable, Ownable, ReentrancyGuard, VRFConsumerBase 
 	/*
 	* START 
 	* CHAINLINK KEEPER SOLUTION *
+    * CURRENT IS INEFFICIENT, TEST CASE
 	*/
 
-    //Damage each tree - Chainlink Keeper?
+    //Damage each tree - Chainlink Keeper? 
     function tick() external onlyOwner {
         uint256 tokenTree;
         for (tokenTree = 1; tokenTree <= totalSupply(); tokenTree++) {
@@ -107,8 +111,9 @@ contract Treedom is ERC721Enumerable, Ownable, ReentrancyGuard, VRFConsumerBase 
         require(freezeAcc != address(0), "no freeze address");
         safeTransferFrom(_msgSender(), freezeAcc, tree);
     }
+
     /*
-     *	Burn Lottery
+     *	Start Burn Lottery
      */
 
     function getRandomNumber() public returns(bytes32 requestId) {
@@ -123,15 +128,19 @@ contract Treedom is ERC721Enumerable, Ownable, ReentrancyGuard, VRFConsumerBase 
         randomResult = (randomness % totalSupply());
     }
 
-    //Can get burned by randomResult value,
-    //If freeze acc, skip. 
     function burnLottery() public onlyOwner {
+        //First call random, then set burned token to randomResult
         uint256 burned = randomResult;
+        //use token index instead of by token id, ensure token exists
         address tokenOwner = ownerOf(tokenByIndex(burned));
         if (tokenOwner == freezeAcc) return;
         burn(tokenByIndex(burned));
         payable(tokenOwner).transfer(0.1 ether);
     }
+
+    /*
+     *	End Burn Lottery
+     */
 
     /*
      * This is how you get one, or more...
@@ -162,6 +171,7 @@ contract Treedom is ERC721Enumerable, Ownable, ReentrancyGuard, VRFConsumerBase 
     function _mintToken(address destinationAddress) private {
         tokenIndex++;
         require(!_exists(tokenIndex), "Token already exist.");
+        //Each tree has default health of 5
         health[tokenIndex] = 5;
         _safeMint(destinationAddress, tokenIndex);
     }
